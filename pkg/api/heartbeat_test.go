@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 
-	"gitlab.com/slon/shad-go/distbuild/pkg/api"
-	"gitlab.com/slon/shad-go/distbuild/pkg/api/mock"
-	"gitlab.com/slon/shad-go/distbuild/pkg/build"
+	"distributed_build/pkg/api"
+	"distributed_build/pkg/api/mock"
+	"distributed_build/pkg/build"
 )
 
 //go:generate mockgen -package mock -destination mock/heartbeat.go . HeartbeatService

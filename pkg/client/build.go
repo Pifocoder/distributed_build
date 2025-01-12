@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"gitlab.com/slon/shad-go/distbuild/pkg/build"
+	"distributed_build/pkg/build"
 )
 
 type Client struct {

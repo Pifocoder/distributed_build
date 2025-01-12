@@ -3,26 +3,26 @@ package api
 import (
 	"context"
 
-	"gitlab.com/slon/shad-go/distbuild/pkg/build"
+	"distributed_build/pkg/build"
 )
 
 type BuildRequest struct {
-	Graph build.Graph
+	Graph build.Graph `json:"graph"`
 }
 
 type BuildStarted struct {
-	ID           build.ID
-	MissingFiles []build.ID
+	ID           build.ID   `json:"id"`
+	MissingFiles []build.ID `json:"missing_files"`
 }
 
 type StatusUpdate struct {
-	JobFinished   *JobResult
-	BuildFailed   *BuildFailed
-	BuildFinished *BuildFinished
+	JobFinished   *JobResult     `json:"job_finished"`
+	BuildFailed   *BuildFailed   `json:"build_failed"`
+	BuildFinished *BuildFinished `json:"build_finished"`
 }
 
 type BuildFailed struct {
-	Error string
+	Error string `json:"error"`
 }
 
 type BuildFinished struct {
@@ -31,7 +31,7 @@ type BuildFinished struct {
 type UploadDone struct{}
 
 type SignalRequest struct {
-	UploadDone *UploadDone
+	UploadDone *UploadDone `json:"upload_done"`
 }
 
 type SignalResponse struct {

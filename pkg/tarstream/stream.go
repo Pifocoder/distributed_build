@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-// Send рекурсивно обходит директорию и сериализует её содержимое в поток w.
+// Send рекурсивно обходит директорию dir и сериализует её содержимое в поток w.
 func Send(dir string, w io.Writer) error {
 	tw := tar.NewWriter(w)
 

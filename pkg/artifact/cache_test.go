@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/slon/shad-go/distbuild/pkg/artifact"
-	"gitlab.com/slon/shad-go/distbuild/pkg/build"
+	"distributed_build/pkg/artifact"
+	"distributed_build/pkg/build"
 )
 
 type testCache struct {

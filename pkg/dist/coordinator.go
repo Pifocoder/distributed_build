@@ -8,8 +8,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"gitlab.com/slon/shad-go/distbuild/pkg/filecache"
-	"gitlab.com/slon/shad-go/distbuild/pkg/scheduler"
+	"distributed_build/pkg/filecache"
+	"distributed_build/pkg/scheduler"
 )
 
 type Coordinator struct {

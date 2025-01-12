@@ -8,9 +8,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"gitlab.com/slon/shad-go/distbuild/pkg/api"
-	"gitlab.com/slon/shad-go/distbuild/pkg/artifact"
-	"gitlab.com/slon/shad-go/distbuild/pkg/filecache"
+	"distributed_build/pkg/api"
+	"distributed_build/pkg/artifact"
+	"distributed_build/pkg/filecache"
 )
 
 type Worker struct {

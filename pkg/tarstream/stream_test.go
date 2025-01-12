@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 
-	"gitlab.com/slon/shad-go/distbuild/pkg/tarstream"
+	"distributed_build/pkg/tarstream"
 )
 
 func TestTarStream(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"gitlab.com/slon/shad-go/distbuild/pkg/artifact"
-	"gitlab.com/slon/shad-go/distbuild/pkg/build"
+	"distributed_build/pkg/artifact"
+	"distributed_build/pkg/build"
 )
 
 var (

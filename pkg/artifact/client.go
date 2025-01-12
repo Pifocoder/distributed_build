@@ -5,7 +5,7 @@ package artifact
 import (
 	"context"
 
-	"gitlab.com/slon/shad-go/distbuild/pkg/build"
+	"distributed_build/pkg/build"
 )
 
 // Download artifact from remote cache into local cache.

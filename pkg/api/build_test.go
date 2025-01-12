@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 
-	"gitlab.com/slon/shad-go/distbuild/pkg/api"
-	mock "gitlab.com/slon/shad-go/distbuild/pkg/api/mock"
-	"gitlab.com/slon/shad-go/distbuild/pkg/build"
+	"distributed_build/pkg/api"
+	mock "distributed_build/pkg/api/mock"
+	"distributed_build/pkg/build"
 )
 
 //go:generate mockgen -package mock -destination mock/mock.go . Service
@@ -59,6 +59,8 @@ func TestBuildSignal(t *testing.T) {
 	buildIDb := build.ID{02}
 	req := &api.SignalRequest{}
 	rsp := &api.SignalResponse{}
+
+	fmt.Println(buildIDa.String())
 
 	env.mock.EXPECT().SignalBuild(gomock.Any(), buildIDa, req).Return(rsp, nil)
 	env.mock.EXPECT().SignalBuild(gomock.Any(), buildIDb, req).Return(nil, fmt.Errorf("foo bar error"))

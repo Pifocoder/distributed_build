@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 
-	"gitlab.com/slon/shad-go/distbuild/pkg/artifact"
-	"gitlab.com/slon/shad-go/distbuild/pkg/build"
+	"distributed_build/pkg/artifact"
+	"distributed_build/pkg/build"
 )
 
 func TestArtifactTransfer(t *testing.T) {
