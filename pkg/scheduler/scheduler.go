@@ -24,28 +24,59 @@ type Config struct {
 }
 
 type Scheduler struct {
+	logger    *zap.Logger
+	timeAfter func(d time.Duration) <-chan time.Time
+	queue     chan *api.JobSpec
+
+	config      Config
+	jobCache    map[string][]string
+	workingJobs map[build.ID]api.WorkerID
 }
 
 func NewScheduler(l *zap.Logger, config Config, timeAfter func(d time.Duration) <-chan time.Time) *Scheduler {
-	panic("implement me")
+	return &Scheduler{logger: l, config: config, timeAfter: timeAfter, queue: make(chan *api.JobSpec), jobCache: map[string][]string{}}
 }
 
 func (c *Scheduler) LocateArtifact(id build.ID) (api.WorkerID, bool) {
-	panic("implement me")
+	res, ok := (c.workingJobs[id])
+	return res, ok
 }
 
 func (c *Scheduler) OnJobComplete(workerID api.WorkerID, jobID build.ID, res *api.JobResult) bool {
-	panic("implement me")
+	// arr, ok := c.jobCache[workerID.String()]
+	// if !ok {
+	// 	c.jobCache[workerID.String()] = []string{jobID.String()}
+	// 	return true
+	// }
+	return false
 }
 
 func (c *Scheduler) ScheduleJob(job *api.JobSpec) *PendingJob {
-	panic("implement me")
+	c.queue <- job
+	return &PendingJob{
+		Job:      job,
+		Finished: make(chan struct{}),
+		Result:   nil,
+	}
 }
 
 func (c *Scheduler) PickJob(ctx context.Context, workerID api.WorkerID) *PendingJob {
-	panic("implement me")
+	select {
+	case job, ok := <-c.queue:
+		if !ok {
+			return nil
+		}
+		c.workingJobs[job.ID] = workerID
+		return &PendingJob{
+			Job:      job,
+			Finished: make(chan struct{}),
+			Result:   nil,
+		}
+	case <-ctx.Done():
+		return nil
+	}
 }
 
 func (c *Scheduler) Stop() {
-	panic("implement me")
+	close(c.queue)
 }
