@@ -4,6 +4,7 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -28,16 +29,12 @@ type Scheduler struct {
 	timeAfter func(d time.Duration) <-chan time.Time
 	queue     chan *api.JobSpec
 
-	config        Config
-	jobCache      map[build.ID][]api.WorkerID
-	jobWorker     map[build.ID]api.WorkerID
-	wokerIDWorker map[build.ID]api.WorkerID
-	workers       []Worker
-}
-type Worker struct {
-	WorkerID         api.WorkerID
-	firstLocalQueue  chan *api.JobSpec
-	secondLocalQueue chan *api.JobSpec
+	config                 Config
+	jobCache               map[build.ID][]api.WorkerID
+	jobWorker              map[build.ID]api.WorkerID
+	firstLocalWorkerQueue  map[api.WorkerID]chan *api.JobSpec
+	secondLocalWorkerQueue map[api.WorkerID]chan *api.JobSpec
+	workerPending          map[api.WorkerID]*PendingJob
 }
 
 func NewScheduler(l *zap.Logger, config Config, timeAfter func(d time.Duration) <-chan time.Time) *Scheduler {
@@ -46,17 +43,18 @@ func NewScheduler(l *zap.Logger, config Config, timeAfter func(d time.Duration) 
 		config:    config,
 		timeAfter: timeAfter,
 		queue:     make(chan *api.JobSpec),
-		jobCache:  make(map[build.ID][]api.WorkerID),
-		jobWorker: make(map[build.ID]api.WorkerID),
+
+		jobCache:               make(map[build.ID][]api.WorkerID),
+		jobWorker:              make(map[build.ID]api.WorkerID),
+		workerPending:          make(map[api.WorkerID]*PendingJob),
+		firstLocalWorkerQueue:  make(map[api.WorkerID]chan *api.JobSpec),
+		secondLocalWorkerQueue: make(map[api.WorkerID]chan *api.JobSpec),
 	}
 }
 
 func (c *Scheduler) RegisterWorker(workerID api.WorkerID) {
-	c.workers = append(c.workers, Worker{
-		WorkerID:         workerID,
-		firstLocalQueue:  make(chan *api.JobSpec),
-		secondLocalQueue: make(chan *api.JobSpec),
-	})
+	c.firstLocalWorkerQueue[workerID] = make(chan *api.JobSpec)
+	c.secondLocalWorkerQueue[workerID] = make(chan *api.JobSpec)
 }
 func (c *Scheduler) LocateArtifact(id build.ID) (api.WorkerID, bool) {
 	res, ok := c.jobWorker[id]
@@ -64,32 +62,23 @@ func (c *Scheduler) LocateArtifact(id build.ID) (api.WorkerID, bool) {
 }
 
 func (c *Scheduler) OnJobComplete(workerID api.WorkerID, jobID build.ID, res *api.JobResult) bool {
+	c.jobCache[jobID] = append(c.jobCache[jobID], workerID)
+	_, ok := c.workerPending[workerID]
+	if !ok {
+		return false
+	}
+	c.workerPending[workerID].Result = res
+	c.workerPending[workerID].Finished <- struct{}{}
 	// arr, ok := c.jobCache[workerID.String()]
 	// if !ok {
 	// 	c.jobCache[workerID.String()] = []string{jobID.String()}
 	// 	return true
 	// }
-	return false
+	return true
 }
 
 func (c *Scheduler) ScheduleJob(job *api.JobSpec) *PendingJob {
-	cacheTimeout := c.timeAfter(c.config.CacheTimeout)
-	depsTimeout := c.timeAfter(c.config.DepsTimeout)
 	jobFinished := make(chan struct{})
-	go func(jobFinished chan struct{}) {
-		select {
-		case _, ok := <-cacheTimeout:
-			if !ok {
-				return
-			}
-		case _, ok := <-depsTimeout:
-			if !ok {
-				return
-			}
-		case <-jobFinished:
-			return
-		}
-	}(jobFinished)
 
 	suitableWorkers, ok := c.jobCache[job.ID]
 	if !ok {
@@ -98,7 +87,6 @@ func (c *Scheduler) ScheduleJob(job *api.JobSpec) *PendingJob {
 			if !ok {
 				continue
 			}
-
 			c.secondLocalWorkerQueue[workerID] <- job
 		}
 	} else {
@@ -106,6 +94,37 @@ func (c *Scheduler) ScheduleJob(job *api.JobSpec) *PendingJob {
 			c.firstLocalWorkerQueue[workerID] <- job
 		}
 	}
+
+	go func() {
+		select {
+		case <-c.timeAfter(c.config.CacheTimeout):
+			fmt.Println("CacheTimeout")
+			// Если задача ждёт дольше CacheTimeout, добавляем во все вторые локальные очереди
+			for _, jobID := range job.Deps {
+				workerID, ok := job.Artifacts[jobID]
+				if !ok {
+					continue
+				}
+				c.secondLocalWorkerQueue[workerID] <- job
+			}
+			return
+		case <-jobFinished:
+			fmt.Println("jobFinished")
+			return // Задача завершена до истечения таймаута
+		}
+	}()
+
+	go func() {
+		select {
+		case <-time.After(c.config.DepsTimeout):
+			fmt.Println("DepsTimeout")
+			c.queue <- job
+			return
+		case <-jobFinished:
+			fmt.Println("jobFinished")
+			return
+		}
+	}()
 
 	return &PendingJob{
 		Job:      job,
@@ -115,37 +134,40 @@ func (c *Scheduler) ScheduleJob(job *api.JobSpec) *PendingJob {
 }
 
 func (c *Scheduler) PickJob(ctx context.Context, workerID api.WorkerID) *PendingJob {
+	fmt.Println(workerID, c.queue)
 	select {
 	case job, ok := <-c.firstLocalWorkerQueue[workerID]:
 		if !ok {
 			return nil
 		}
 		c.jobWorker[job.ID] = workerID
-		return &PendingJob{
+		c.workerPending[workerID] = &PendingJob{
 			Job:      job,
 			Finished: make(chan struct{}),
 			Result:   nil,
 		}
+		return c.workerPending[workerID]
 	case job, ok := <-c.secondLocalWorkerQueue[workerID]:
 		if !ok {
 			return nil
 		}
 		c.jobWorker[job.ID] = workerID
-		return &PendingJob{
+		c.workerPending[workerID] = &PendingJob{
 			Job:      job,
 			Finished: make(chan struct{}),
 			Result:   nil,
 		}
+		return c.workerPending[workerID]
 	case job, ok := <-c.queue:
 		if !ok {
 			return nil
 		}
-		c.jobWorker[job.ID] = workerID
-		return &PendingJob{
+		c.workerPending[workerID] = &PendingJob{
 			Job:      job,
 			Finished: make(chan struct{}),
 			Result:   nil,
 		}
+		return c.workerPending[workerID]
 	case <-ctx.Done():
 		return nil
 	}

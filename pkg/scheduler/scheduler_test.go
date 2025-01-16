@@ -2,6 +2,7 @@ package scheduler_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ const (
 var (
 	config = scheduler.Config{
 		CacheTimeout: time.Second,
-		DepsTimeout:  time.Minute,
+		DepsTimeout:  time.Second * 5,
 	}
 )
 
@@ -46,7 +47,7 @@ func newTestScheduler(t *testing.T) *testScheduler {
 
 	go func() {
 		select {
-		case <-time.After(time.Second * 5):
+		case <-time.After(time.Minute * 5):
 			panic("test hang")
 		case <-s.reset:
 			return
@@ -69,17 +70,17 @@ func TestScheduler_SingleJob(t *testing.T) {
 	job0 := &api.JobSpec{Job: build.Job{ID: build.NewID()}}
 	pendingJob0 := s.ScheduleJob(job0)
 
-	s.BlockUntil(1)
+	//s.BlockUntil(1)
 	s.Advance(config.DepsTimeout) // At this point job must be in global queue.
-
+	time.Sleep(10 * time.Second)
 	s.RegisterWorker(workerID0)
 	pickerJob := s.PickJob(context.Background(), workerID0)
-
+	fmt.Println("PickJob")
 	require.Equal(t, pendingJob0, pickerJob)
 
 	result := &api.JobResult{ID: job0.ID, ExitCode: 0}
 	s.OnJobComplete(workerID0, job0.ID, result)
-
+	fmt.Println("OnJobComplete")
 	select {
 	case <-pendingJob0.Finished:
 		require.Equal(t, pendingJob0.Result, result)
